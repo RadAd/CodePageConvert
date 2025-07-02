@@ -1,0 +1,70 @@
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
+
+#include <cstdlib>
+#include <cstdio>
+
+#include "arg.h"
+#include "RadTextFile.h"
+#include "WinError.h"
+
+int _tmain(const int argc, const TCHAR* const argv[])
+{
+    arginit(argc, argv, TEXT("convert text file between code pages"));
+    int arg = 1;
+    argoptional();
+    LPCTSTR lpInFileName = argnum(arg++, TEXT("-"), TEXT("ifile"), TEXT("input file name. '-' for stdin (default)."));
+    const UINT inCodePage = argvalueint(TEXT("/icp"), CP_ACP, TEXT("icp"), TEXT("\tinput code page. default is console code page."));
+    LPCTSTR lpOutFileName = argnum(arg++, TEXT("-"), TEXT("ofile"), TEXT("output file name. '-' for stdout (default)."));
+    const UINT outCodePage = argvalueint(TEXT("/ocp"), CP_ACP, TEXT("ocp"), TEXT("\toutput code page. default is console code page."));
+    if (!argcleanup())
+        return EXIT_FAILURE;
+    if (argusage())
+    {
+        _tprintf(TEXT("\n"));
+        _tprintf(TEXT("code page:\n"));
+        _tprintf(TEXT("\t0      system default\n"));
+        _tprintf(TEXT("\t65001  utf8\n"));
+        _tprintf(TEXT("\t1200   utf16 little endian\n"));
+        _tprintf(TEXT("\t12001  utf16 big endian\n"));
+        return EXIT_SUCCESS;
+    }
+
+    RadITextFile ifile(lstrcmp(lpInFileName, TEXT("-")) != 0
+        ? RadITextFile(lpInFileName, inCodePage)
+        : RadITextFile::StdIn(GetConsoleCP()));
+    if (!ifile.Valid())
+    {
+        _ftprintf(stderr, TEXT("ERROR: %s\n"), WinError::getMessage(GetLastError(), nullptr, TEXT("Opening input file")).c_str());
+        return EXIT_FAILURE;
+    }
+
+    RadOTextFile ofile(lstrcmp(lpOutFileName, TEXT("-")) != 0
+        ? RadOTextFile(lpOutFileName, outCodePage, true)
+        : RadOTextFile::StdOut(GetConsoleCP()));
+    if (!ofile.Valid())
+    {
+        _ftprintf(stderr, TEXT("ERROR: %s\n"), WinError::getMessage(GetLastError(), nullptr, TEXT("Opening output file")).c_str());
+        return EXIT_FAILURE;
+    }
+
+    if (IsWide(ofile.GetCodePage()))
+    {
+        std::wstring line;
+        while (ifile.ReadLine(line, ofile.GetCodePage()))
+        {
+            ofile.Write(line, ofile.GetCodePage());
+        }
+    }
+    else
+    {
+        std::string line;
+        while (ifile.ReadLine(line, ofile.GetCodePage()))
+        {
+            ofile.Write(line, ofile.GetCodePage());
+        }
+    }
+
+    return EXIT_SUCCESS;
+}

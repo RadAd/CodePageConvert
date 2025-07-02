@@ -1,0 +1,278 @@
+#include <tchar.h>
+
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <crtdbg.h>
+
+#include <string>
+#include <string_view>
+#include <vector>
+
+enum class Encoding
+{
+    Unknown,
+    UTF8,
+    UTF16_BE,
+    UTF16_LE,
+    CODE_PAGE,
+};
+
+Encoding GetEncoding(std::vector<BYTE>& buffer)
+{
+    _ASSERTE(buffer.size() >= 3);
+    INT Test = IS_TEXT_UNICODE_UNICODE_MASK | IS_TEXT_UNICODE_REVERSE_MASK | IS_TEXT_UNICODE_UTF8;
+    if (buffer.size() >= 3 && buffer[0] == 0xef && buffer[1] == 0xbb && buffer[2] == 0xbf)
+    {
+        buffer.erase(buffer.begin(), buffer.begin() + 3);
+        return Encoding::UTF8;
+    }
+    else if (buffer.size() >= 2 && buffer[0] == 0xff && buffer[1] == 0xfe)
+    {
+        buffer.erase(buffer.begin(), buffer.begin() + 2);
+        return Encoding::UTF16_LE;
+    }
+    else if (buffer.size() >= 2 && buffer[0] == 0xfe && buffer[1] == 0xff)
+    {
+        buffer.erase(buffer.begin(), buffer.begin() + 2);
+        return Encoding::UTF16_BE;
+    }
+    else if (IsTextUnicode(buffer.data(), static_cast<int>(buffer.size()), &Test))
+    {
+        if (Test & IS_TEXT_UNICODE_UNICODE_MASK)
+            return Encoding::UTF16_LE;
+        else if (Test & IS_TEXT_UNICODE_REVERSE_MASK)
+            return Encoding::UTF16_BE;
+        else if (Test & IS_TEXT_UNICODE_UTF8)
+            return Encoding::UTF8;
+        else
+            return Encoding::UTF16_LE;
+    }
+    else
+        return Encoding::CODE_PAGE;
+}
+
+class RadFile
+{
+public:
+    RadFile(HANDLE hFile = NULL)
+        : m_hFile(hFile)
+    {
+    }
+    virtual ~RadFile()
+    {
+        Close();
+    }
+
+    operator HANDLE() const { return m_hFile; }
+
+    bool Valid() { return m_hFile != NULL; }
+
+    bool Open(
+        _In_ LPCTSTR lpFileName,
+        _In_ DWORD dwDesiredAccess,
+        _In_ DWORD dwShareMode,
+        _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+        _In_ DWORD dwCreationDisposition,
+        _In_ DWORD dwFlagsAndAttributes,
+        _In_opt_ HANDLE hTemplateFile)
+    {
+        Close();
+        const HANDLE hFile = CreateFile(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+        if (hFile == INVALID_HANDLE_VALUE)
+            return false;
+        m_hFile = hFile;
+        return true;
+    }
+
+    bool Close()
+    {
+        if (m_hFile == NULL)
+            return true;
+        const BOOL b = CloseHandle(m_hFile);
+        m_hFile = NULL;
+        return b;
+    }
+
+private:
+    HANDLE m_hFile;
+};
+
+class RadIFile : public RadFile
+{
+public:
+    RadIFile(_In_ LPCTSTR lpFileName = nullptr)
+    {
+        if (lpFileName)
+            Open(lpFileName);
+    }
+
+    using RadFile::Open;
+    bool Open(_In_ LPCTSTR lpFileName)
+    {
+        return Open(lpFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    }
+
+    DWORD Read(
+        _Out_writes_bytes_(nNumberOfBytesToRead) __out_data_source(FILE) LPVOID lpBuffer,
+        _In_ DWORD nNumberOfBytesToRead)
+    {
+        DWORD nNumberOfBytesRead = 0;
+        const BOOL b = ReadFile(*this, lpBuffer, nNumberOfBytesToRead, &nNumberOfBytesRead, nullptr);
+        if (b)
+            return nNumberOfBytesRead;
+        else
+        {
+            _ASSERTE(nNumberOfBytesRead == 0);
+            return 0;
+        }
+    }
+};
+
+class RadOFile : public RadFile
+{
+public:
+    using RadFile::Open;
+    bool Open(_In_ LPCTSTR lpFileName)
+    {
+        return Open(lpFileName, GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+    }
+
+    DWORD Write(
+        _In_reads_bytes_opt_(nNumberOfBytesToWrite) LPCVOID lpBuffer,
+        _In_ DWORD nNumberOfBytesToWrite)
+    {
+        DWORD pNumberOfBytesWritten = 0;
+        const BOOL b = WriteFile(*this, lpBuffer, nNumberOfBytesToWrite, &pNumberOfBytesWritten, nullptr);
+        if (b)
+            return pNumberOfBytesWritten;
+        else
+        {
+            _ASSERTE(pNumberOfBytesWritten == 0);
+            return 0;
+        }
+    }
+};
+
+class RadITextFile : public RadIFile
+{
+public:
+    using RadIFile::RadIFile;
+
+    template <class T>
+    bool ReadLine(T& line, bool swap = false)
+    {
+        auto it = std::find(m_buffer.begin(), m_buffer.end(), '\n');
+        if (it != m_buffer.end())
+            return extract(line, it + (swap ? 2 : 1), swap), true;
+
+        while (true)
+        {
+            const bool more = FillBuffer();
+            if (m_buffer.empty())
+                return line.clear(), false;
+
+            it = std::find(m_buffer.begin(), m_buffer.end(), '\n');
+            if (it != m_buffer.end())
+                return extract(line, it + (swap ? 2 : 1), swap), true;
+
+            if (!more)
+                return extract(line, m_buffer.end(), swap), true;
+        }
+    }
+
+    Encoding GetEncoding()
+    {
+        if (m_buffer.size() < 3)
+            FillBuffer();
+        return ::GetEncoding(m_buffer);
+    }
+
+private:
+    bool FillBuffer()
+    {
+        const size_t size = m_buffer.size();
+        m_buffer.resize(4096);
+        const DWORD read = Read(m_buffer.data() + size, static_cast<DWORD>(m_buffer.size() - size));
+        m_buffer.resize(size + read);
+        return read > 0;
+    }
+
+    template <class T>
+    void extract(T& line, std::vector<BYTE>::iterator it, bool swap)
+    {
+        _ASSERTE(!m_buffer.empty());
+        const auto dist = std::distance(m_buffer.begin(), it);
+        _ASSERTE(dist % sizeof(T::value_type) == 0);
+        if (swap)
+        {
+            for (std::vector<BYTE>::iterator ita = m_buffer.begin(); ita < std::prev(m_buffer.end()); ita += sizeof(T::value_type))
+            {
+                std::vector<BYTE>::iterator itb = std::next(ita);
+                std::swap(*ita, *itb);
+            }
+        }
+        line.assign(reinterpret_cast<T::pointer>(m_buffer.data()), reinterpret_cast<T::pointer>(m_buffer.data() + dist));
+        m_buffer.erase(m_buffer.begin(), it);
+    }
+
+    std::vector<BYTE> m_buffer;
+};
+
+void MultiByteToWideChar(_In_ UINT CodePage, _In_ DWORD dwFlags, const std::string_view line, std::wstring& wline)
+{
+    wline.resize(line.size());
+    const int s = ::MultiByteToWideChar(CodePage, dwFlags, line.data(), static_cast<int>(line.size()), wline.data(), static_cast<int>(wline.size()));
+    wline.resize(s);
+}
+
+void WideCharToMultiByte(_In_ UINT CodePage, _In_ DWORD dwFlags, const std::wstring_view wline, std::string& line, _In_opt_ LPCCH lpDefaultChar = nullptr, _Out_opt_ LPBOOL lpUsedDefaultChar = nullptr)
+{
+    line.resize(line.size());
+    const int s = ::WideCharToMultiByte(CodePage, dwFlags, wline.data(), static_cast<int>(wline.size()), line.data(), static_cast<int>(line.size()), lpDefaultChar, lpUsedDefaultChar);
+    line.resize(s);
+}
+
+
+#include <cstdlib>
+#include <cstdio>
+
+int _tmain(const int argc, const TCHAR* const argv[])
+{
+    _tprintf(_T("Hello World\n"));
+
+    RadITextFile ifile(TEXT("RadFile.cpp"));
+
+    const Encoding enc = ifile.GetEncoding();
+    const int outCodePage = CP_UTF8;
+
+    if (enc == Encoding::UTF16_LE || enc == Encoding::UTF16_BE)
+    {
+        std::wstring wline;
+        std::string line;
+        while (ifile.ReadLine(wline, enc == Encoding::UTF16_BE))
+        {
+            WideCharToMultiByte(outCodePage, 0, wline, line);
+
+            printf("*** %s", line.c_str());
+        }
+    }
+    else
+    {
+        const int inCodePage = enc == Encoding::UTF8 ? CP_UTF8 : CP_ACP;
+        std::string line;
+        std::wstring wline;
+        while (ifile.ReadLine(line))
+        {
+            if (inCodePage != outCodePage)
+            {
+                MultiByteToWideChar(inCodePage, 0, line, wline);
+                WideCharToMultiByte(outCodePage, 0, wline, line);
+            }
+
+            printf("*** %s", line.c_str());
+        }
+    }
+
+    return EXIT_SUCCESS;
+}
+// abc
