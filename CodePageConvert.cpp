@@ -31,12 +31,24 @@ int _tmain(const int argc, const TCHAR* const argv[])
         return EXIT_SUCCESS;
     }
 
+    if (IsWide32(inCodePage) || IsWide32(outCodePage))
+    {
+        _ftprintf(stderr, TEXT("ERROR: UTF32 code pages are not supported.\n"));
+        return EXIT_FAILURE;
+    }
+
     RadITextFile ifile(lstrcmp(lpInFileName, TEXT("-")) != 0
         ? RadITextFile(lpInFileName, inCodePage)
         : RadITextFile::StdIn(GetConsoleCP()));
     if (!ifile.Valid())
     {
         _ftprintf(stderr, TEXT("ERROR: %s\n"), WinError::getMessage(GetLastError(), nullptr, TEXT("Opening input file")).c_str());
+        return EXIT_FAILURE;
+    }
+
+    if (IsWide32(ifile.GetCodePage()))
+    {
+        _ftprintf(stderr, TEXT("ERROR: UTF32 code pages are not supported.\n"));
         return EXIT_FAILURE;
     }
 
@@ -49,7 +61,7 @@ int _tmain(const int argc, const TCHAR* const argv[])
         return EXIT_FAILURE;
     }
 
-    if (IsWide(ofile.GetCodePage()))
+    if (IsWide16(ofile.GetCodePage()))
     {
         std::wstring line;
         while (ifile.ReadLine(line, ofile.GetCodePage()))

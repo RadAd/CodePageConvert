@@ -7,11 +7,17 @@
 #include <string_view>
 
 // https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers
-#define CP_UTF16_LE     1200
-#define CP_UTF16_BE     1201
+#define CP_UTF16_LE     1200u
+#define CP_UTF16_BE     1201u
+#define CP_UTF32_LE     12000u
+#define CP_UTF32_BE     12001u
 #define CP_UNKNOWN      UINT(-1)
 
-inline bool IsWide(_In_ const UINT cp) { return cp == CP_UTF16_LE || cp == CP_UTF16_BE; }
+inline bool IsWide16(_In_ const UINT cp) { return cp == CP_UTF16_LE || cp == CP_UTF16_BE; }
+inline bool IsWide32(_In_ const UINT cp) { return cp == CP_UTF32_LE || cp == CP_UTF32_BE; }
+
+inline bool IsLittleEndian(_In_ const UINT cp) { return cp == CP_UTF16_LE || cp == CP_UTF32_LE; }
+inline bool IsBigEndian(_In_ const UINT cp) { return cp == CP_UTF16_BE || cp == CP_UTF32_BE; }
 
 inline void MultiByteToWideChar(_In_ const UINT CodePage, _In_ const DWORD dwFlags, _In_ const std::string_view line, _Out_ std::wstring& wline)
 {

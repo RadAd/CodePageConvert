@@ -8,8 +8,8 @@
 bool RadITextFile::ReadLine(std::string& line, const UINT outCodePage)
 {
     _ASSERTE(m_cp != CP_UNKNOWN);
-    _ASSERTE(!IsWide(outCodePage));
-    if (IsWide(m_cp))
+    _ASSERTE(!IsWide16(outCodePage));
+    if (IsWide16(m_cp))
     {
         std::wstring wline;
         const bool r = ReadLineInternal(wline);
@@ -35,8 +35,8 @@ bool RadITextFile::ReadLine(std::string& line, const UINT outCodePage)
 bool RadITextFile::ReadLine(std::wstring& wline, const UINT outCodePage)
 {
     _ASSERTE(m_cp != CP_UNKNOWN);
-    _ASSERTE(IsWide(outCodePage));
-    if (IsWide(m_cp))
+    _ASSERTE(IsWide16(outCodePage));
+    if (IsWide16(m_cp))
         return ReadLineInternal(wline, m_cp != outCodePage);
     else
     {
@@ -58,6 +58,8 @@ void RadITextFile::DetermineEncoding(UINT defcp)
     case ByteOrderMark::UTF8:       m_cp = CP_UTF8; break;
     case ByteOrderMark::UTF16_LE:   m_cp = CP_UTF16_LE; break;
     case ByteOrderMark::UTF16_BE:   m_cp = CP_UTF16_BE; break;
+    case ByteOrderMark::UTF32_LE:   m_cp = CP_UTF32_LE; break;
+    case ByteOrderMark::UTF32_BE:   m_cp = CP_UTF32_BE; break;
     default:                        m_cp = GuessCodePage(m_buffer.data(), static_cast<int>(m_buffer.size()), defcp); break;
     }
 }
@@ -110,8 +112,8 @@ void RadITextFile::extract(T& line, std::vector<std::byte>::iterator it, bool sw
 bool RadOTextFile::Write(std::string_view line, const UINT inCodePage)
 {
     _ASSERTE(m_cp != CP_UNKNOWN);
-    _ASSERTE(!IsWide(inCodePage));
-    if (IsWide(m_cp))
+    _ASSERTE(!IsWide16(inCodePage));
+    if (IsWide16(m_cp))
     {
         std::wstring wline;
         MultiByteToWideChar(m_cp, 0, line, wline);
@@ -134,8 +136,8 @@ bool RadOTextFile::Write(std::string_view line, const UINT inCodePage)
 bool RadOTextFile::Write(std::wstring_view wline, const UINT inCodePage)
 {
     _ASSERTE(m_cp != CP_UNKNOWN);
-    _ASSERTE(IsWide(inCodePage));
-    if (IsWide(m_cp))
+    _ASSERTE(IsWide16(inCodePage));
+    if (IsWide16(m_cp))
     {
         if (m_cp != inCodePage)
         {
@@ -163,5 +165,7 @@ void RadOTextFile::WriteBom()
     case CP_UTF8:       m_file.Write(GetByteOrderMark(ByteOrderMark::UTF8)); break;
     case CP_UTF16_LE:   m_file.Write(GetByteOrderMark(ByteOrderMark::UTF16_LE)); break;
     case CP_UTF16_BE:   m_file.Write(GetByteOrderMark(ByteOrderMark::UTF16_BE)); break;
+    case CP_UTF32_BE:   m_file.Write(GetByteOrderMark(ByteOrderMark::UTF32_BE)); break;
+    case CP_UTF32_BE:   m_file.Write(GetByteOrderMark(ByteOrderMark::UTF32_BE)); break;
     }
 }
