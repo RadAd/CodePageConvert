@@ -15,9 +15,9 @@ int _tmain(const int argc, const TCHAR* const argv[])
     int arg = 1;
     argoptional();
     LPCTSTR lpInFileName = argnum(arg++, TEXT("-"), TEXT("ifile"), TEXT("input file name. '-' for stdin (default)."));
-    const UINT inCodePage = argvalueint(TEXT("/icp"), CP_ACP, TEXT("icp"), TEXT("\tinput code page. default is console code page."));
+    const UINT inCodePage = argvalueint(TEXT("/icp"), GetConsoleCP(), TEXT("icp"), TEXT("\tinput code page. default is console code page."));
     LPCTSTR lpOutFileName = argnum(arg++, TEXT("-"), TEXT("ofile"), TEXT("output file name. '-' for stdout (default)."));
-    const UINT outCodePage = argvalueint(TEXT("/ocp"), CP_ACP, TEXT("ocp"), TEXT("\toutput code page. default is console code page."));
+    const UINT outCodePage = argvalueint(TEXT("/ocp"), GetConsoleOutputCP(), TEXT("ocp"), TEXT("\toutput code page. default is console code page."));
     if (!argcleanup())
         return EXIT_FAILURE;
     if (argusage())
@@ -39,7 +39,7 @@ int _tmain(const int argc, const TCHAR* const argv[])
 
     RadITextFile ifile(lstrcmp(lpInFileName, TEXT("-")) != 0
         ? RadITextFile(lpInFileName, inCodePage)
-        : RadITextFile::StdIn(GetConsoleCP()));
+        : RadITextFile::StdIn(inCodePage));
     if (!ifile.Valid())
     {
         _ftprintf(stderr, TEXT("ERROR: %s\n"), WinError::getMessage(GetLastError(), nullptr, TEXT("Opening input file")).c_str());
@@ -54,7 +54,7 @@ int _tmain(const int argc, const TCHAR* const argv[])
 
     RadOTextFile ofile(lstrcmp(lpOutFileName, TEXT("-")) != 0
         ? RadOTextFile(lpOutFileName, outCodePage, true)
-        : RadOTextFile::StdOut(GetConsoleCP()));
+        : RadOTextFile::StdOut(outCodePage));
     if (!ofile.Valid())
     {
         _ftprintf(stderr, TEXT("ERROR: %s\n"), WinError::getMessage(GetLastError(), nullptr, TEXT("Opening output file")).c_str());
