@@ -11,7 +11,7 @@ bool RadITextFile::ReadLine(std::string& line, const UINT outCodePage)
     _ASSERTE(!IsWide16(outCodePage));
     if (IsWide16(m_cp))
     {
-        std::wstring wline;
+        thread_local std::wstring wline;
         const bool r = ReadLineInternal(wline, IsBigEndian(m_cp));
         if (r)
             WideCharToMultiByte(outCodePage, 0, wline, line);
@@ -24,7 +24,7 @@ bool RadITextFile::ReadLine(std::string& line, const UINT outCodePage)
         const bool r = ReadLineInternal(line);
         if (r && m_cp != outCodePage && outCodePage != CP_UNKNOWN)
         {
-            std::wstring wline;
+            thread_local std::wstring wline;
             MultiByteToWideChar(m_cp, 0, line, wline);
             WideCharToMultiByte(outCodePage, 0, wline, line);
         }
@@ -40,7 +40,7 @@ bool RadITextFile::ReadLine(std::wstring& wline, const UINT outCodePage)
         return ReadLineInternal(wline, IsLittleEndian(m_cp) != IsLittleEndian(outCodePage));
     else
     {
-        std::string line;
+        thread_local std::string line;
         const bool r = ReadLineInternal(line);
         if (r)
             MultiByteToWideChar(m_cp, 0, line, wline);
