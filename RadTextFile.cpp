@@ -12,7 +12,7 @@ bool RadITextFile::ReadLine(std::string& line, const UINT outCodePage)
     if (IsWide16(m_cp))
     {
         std::wstring wline;
-        const bool r = ReadLineInternal(wline);
+        const bool r = ReadLineInternal(wline, IsBigEndian(m_cp));
         if (r)
             WideCharToMultiByte(outCodePage, 0, wline, line);
         else
@@ -37,7 +37,7 @@ bool RadITextFile::ReadLine(std::wstring& wline, const UINT outCodePage)
     _ASSERTE(m_cp != CP_UNKNOWN);
     _ASSERTE(IsWide16(outCodePage));
     if (IsWide16(m_cp))
-        return ReadLineInternal(wline, m_cp != outCodePage);
+        return ReadLineInternal(wline, IsLittleEndian(m_cp) != IsLittleEndian(outCodePage));
     else
     {
         std::string line;
@@ -69,7 +69,7 @@ bool RadITextFile::ReadLineInternal(T& line, bool swap)
 {
     auto it = std::find(m_buffer.begin(), m_buffer.end(), std::byte('\n'));
     if (it != m_buffer.end())
-        return extract(line, it + (m_cp == CP_UTF16_BE ? 2 : 1), swap), true;
+        return extract(line, it + (IsLittleEndian(m_cp) ? 2 : 1), swap), true;
 
     while (true)
     {
@@ -79,7 +79,7 @@ bool RadITextFile::ReadLineInternal(T& line, bool swap)
 
         it = std::find(m_buffer.begin(), m_buffer.end(), std::byte('\n'));
         if (it != m_buffer.end())
-            return extract(line, it + (m_cp == CP_UTF16_BE ? 2 : 1), swap), true;
+            return extract(line, it + (IsLittleEndian(m_cp) ? 2 : 1), swap), true;
 
         if (!more)
             return extract(line, m_buffer.end(), swap), true;
@@ -165,7 +165,7 @@ void RadOTextFile::WriteBom()
     case CP_UTF8:       m_file.Write(GetByteOrderMark(ByteOrderMark::UTF8)); break;
     case CP_UTF16_LE:   m_file.Write(GetByteOrderMark(ByteOrderMark::UTF16_LE)); break;
     case CP_UTF16_BE:   m_file.Write(GetByteOrderMark(ByteOrderMark::UTF16_BE)); break;
-    case CP_UTF32_BE:   m_file.Write(GetByteOrderMark(ByteOrderMark::UTF32_BE)); break;
+    case CP_UTF32_LE:   m_file.Write(GetByteOrderMark(ByteOrderMark::UTF32_LE)); break;
     case CP_UTF32_BE:   m_file.Write(GetByteOrderMark(ByteOrderMark::UTF32_BE)); break;
     }
 }
