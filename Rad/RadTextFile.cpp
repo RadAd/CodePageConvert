@@ -43,7 +43,13 @@ bool RadITextFile::ReadLine(std::wstring& wline, const UINT outCodePage)
         thread_local std::string line;
         const bool r = ReadLineInternal(line);
         if (r)
+        {
             MultiByteToWideChar(m_cp, 0, line, wline);
+            if (IsBigEndian(outCodePage))
+                byte_swap_span<sizeof(std::wstring::value_type)>(to_dyn_span(wline).reinterpret<std::byte>());
+        }
+        else
+            wline.clear();
         return r;
     }
 }

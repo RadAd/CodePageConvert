@@ -5,9 +5,9 @@
 #include <cstdlib>
 #include <cstdio>
 
-#include "arg.h"
-#include "RadTextFile.h"
-#include "WinError.h"
+#include "Rad/arg.h"
+#include "Rad/RadTextFile.h"
+#include "Rad/WinError.h"
 
 int _tmain(const int argc, const TCHAR* const argv[])
 {

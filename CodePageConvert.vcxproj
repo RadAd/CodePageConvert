@@ -58,26 +58,26 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="arg.c" />
     <ClCompile Include="CodePageConvert.cpp" />
-    <ClCompile Include="RadFile.cpp" />
-    <ClCompile Include="RadTextFile.cpp" />
-    <ClCompile Include="WinError.cpp" />
+    <ClCompile Include="Rad\arg.c" />
+    <ClCompile Include="Rad\RadFile.cpp" />
+    <ClCompile Include="Rad\RadTextFile.cpp" />
+    <ClCompile Include="Rad\WinError.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="dyn_span.natvis" />
+    <ClInclude Include="Rad\arg.h" />
+    <ClInclude Include="Rad\ByteOrderMark.h" />
+    <ClInclude Include="Rad\byte_swap.h" />
+    <ClInclude Include="Rad\Format.h" />
+    <ClInclude Include="Rad\MemoryPlus.h" />
+    <ClInclude Include="Rad\RadFile.h" />
+    <ClInclude Include="Rad\RadTextFile.h" />
+    <ClInclude Include="Rad\span.h" />
+    <ClInclude Include="Rad\Unicode.h" />
+    <ClInclude Include="Rad\WinError.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="arg.h" />
-    <ClInclude Include="ByteOrderMark.h" />
-    <ClInclude Include="byte_swap.h" />
-    <ClInclude Include="Format.h" />
-    <ClInclude Include="MemoryPlus.h" />
-    <ClInclude Include="RadFile.h" />
-    <ClInclude Include="RadTextFile.h" />
-    <ClInclude Include="span.h" />
-    <ClInclude Include="Unicode.h" />
-    <ClInclude Include="WinError.h" />
+    <Natvis Include="Rad\dyn_span.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
