@@ -9,8 +9,28 @@
 #include "Rad/RadTextFile.h"
 #include "Rad/WinError.h"
 
+#if _DEBUG
+void __cdecl CrtDebugEnd()
+{
+    _CrtMemState state;
+    _CrtMemCheckpoint(&state);
+
+    if (state.lCounts[_CLIENT_BLOCK] != 0 ||
+        state.lCounts[_NORMAL_BLOCK] != 0 ||
+        (_crtDbgFlag & _CRTDBG_CHECK_CRT_DF && state.lCounts[_CRT_BLOCK] != 0))
+    {
+        _RPT0(_CRT_ERROR, "Detected memory leaks!\n");
+    }
+}
+#endif
+
 int _tmain(const int argc, const TCHAR* const argv[])
 {
+    _CrtSetDbgFlag(_CrtSetDbgFlag(_CRTDBG_REPORT_FLAG) | _CRTDBG_LEAK_CHECK_DF);
+#if _DEBUG
+    atexit(CrtDebugEnd);
+#endif
+
     arginit(argc, argv, TEXT("convert text file between code pages"));
     int arg = 1;
     argoptional();
