@@ -20,8 +20,15 @@ public:
     {
     }
 
-    RadITextFile(_In_ HANDLE hFile, UINT defcp)
+    RadITextFile(_In_ HANDLE hFile, _In_ UINT defcp)
         : m_file(hFile, false)
+    {
+        if (Valid())
+            DetermineEncoding(defcp);
+    }
+
+    RadITextFile(_In_ RadIFile File, _In_ UINT defcp)
+        : m_file(std::move(File))
     {
         if (Valid())
             DetermineEncoding(defcp);
@@ -45,8 +52,8 @@ public:
 
     UINT GetCodePage() const { return m_cp; }
 
-    bool ReadLine(std::string& line, const UINT outCodePage = CP_UTF8);
-    bool ReadLine(std::wstring& wline, const UINT outCodePage = CP_UTF16_LE);
+    bool ReadLine(std::string& line, const UINT outCodePage);
+    bool ReadLine(std::wstring& wline, const UINT outCodePage);
 
 private:
     void DetermineEncoding(UINT defcp);
@@ -65,13 +72,13 @@ public:
     static RadOTextFile StdOut(UINT defcp = CP_ACP)
     {
         const HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
-        return RadOTextFile(h, defcp, GetFileType(h) != FILE_TYPE_CHAR);
+        return RadOTextFile(h, defcp);
     }
 
     static RadOTextFile StdErr(UINT defcp = CP_ACP)
     {
         const HANDLE h = GetStdHandle(STD_ERROR_HANDLE);
-        return RadOTextFile(h, defcp, GetFileType(h) != FILE_TYPE_CHAR);
+        return RadOTextFile(h, defcp);
     }
 
     RadOTextFile()
@@ -82,6 +89,13 @@ public:
         : m_file(hFile, false), m_cp(cp)
     {
         if (bom)
+            WriteBom();
+    }
+
+    RadOTextFile(_In_ const HANDLE hFile, _In_ const UINT cp)
+        : m_file(hFile, false), m_cp(cp)
+    {
+        if (GetFileType(hFile) != FILE_TYPE_CHAR)
             WriteBom();
     }
 
@@ -109,12 +123,12 @@ public:
 
     bool WriteLine(std::string_view line, const UINT inCodePage)
     {
-        return Write(line, inCodePage) && Write("/r/n", inCodePage);
+        return Write(line, inCodePage) && Write("\r\n", inCodePage);
     }
 
     bool WriteLine(std::wstring_view wline, const UINT inCodePage)
     {
-        return Write(wline, inCodePage) && Write(L"/r/n", inCodePage);
+        return Write(wline, inCodePage) && Write(L"\r\n", inCodePage);
     }
 
 private:
